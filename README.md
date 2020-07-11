@@ -8,5 +8,4 @@ A `Python` implementation of supervised predictive coding, introduced in [An App
 
 ## Requirements
 - `numpy`
-- `torch`
 - `torchvision`

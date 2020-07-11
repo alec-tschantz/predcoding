@@ -1,6 +1,7 @@
 import numpy as np
 
 import utils
+import mnist_utils
 import functions as F
 
 
@@ -20,7 +21,6 @@ class PredictiveCodingNetwork(object):
 
         self.W = None
         self.b = None
-        self.momentum = None
         self._init_params()
 
     def infer(self, x, batch_size):
@@ -66,14 +66,13 @@ class PredictiveCodingNetwork(object):
 
         return x, errors, its
 
-    def train_epoch(self, imgs, labels):
+    def train_epoch(self, imgs, labels, log_error=False):
         img_batches, label_batches, batch_sizes = self._get_batches(imgs, labels, self.batch_size)
         n_batches = len(img_batches)
         print(f"training on {n_batches} batches of size {self.batch_size}")
 
         for batch in range(n_batches):
             batch_size = batch_sizes[batch]
-
             x = [[] for _ in range(self.n_layers)]
             x[0] = img_batches[batch]
             for l in range(1, self.n_layers):
@@ -95,24 +94,29 @@ class PredictiveCodingNetwork(object):
             for l in range(self.n_layers - 1):
                 self.W[l] = self.W[l] + self.l_rate * grad_w[l]
                 self.b[l] = self.b[l] + self.l_rate * np.expand_dims(grad_b[l], axis=1)
-
-            if batch % 50 == 0:
+            
+            if batch % 50 == 0 and log_error:
                 avg_errs = [np.mean(error) for error in errors]
                 print(f"batch {batch}/{n_batches}: avg errors {avg_errs}")
 
     def test(self, imgs, labels):
-        img_batches, _, _ = self._get_batches(imgs, labels, self.batch_size)
+        img_batches, label_batches, batch_sizes = self._get_batches(imgs, labels, self.batch_size)
         n_batches = len(img_batches)
         print(f"testing on {n_batches} batches of size {self.batch_size}")
-        return None
+
+        accs = []
+        for batch in range(n_batches):
+            batch_size = batch_sizes[batch]
+            x = [[] for _ in range(self.n_layers)]
+            x[0] = img_batches[batch]
+            for l in range(1, self.n_layers):
+                x[l] = self.W[l - 1] @ F.f(x[l - 1], self.act_fn) + np.tile(self.b[l - 1], (1, batch_size))
+            acc = mnist_utils.mnist_accuracy(x[-1], label_batches[batch])
+            accs.append(acc)
+
+        print(f"average accuracy {np.mean(np.array(accs))}")
 
     def _init_params(self):
-        momentum = utils.AttrDict()
-        momentum.c_b = [[] for _ in range(self.n_layers)]
-        momentum.c_w = [[] for _ in range(self.n_layers)]
-        momentum.v_b = [[] for _ in range(self.n_layers)]
-        momentum.v_w = [[] for _ in range(self.n_layers)]
-
         weights = [[] for _ in range(self.n_layers)]
         bias = [[] for _ in range(self.n_layers)]
 
@@ -128,14 +132,8 @@ class PredictiveCodingNetwork(object):
             weights[l] = np.random.uniform(-1, 1, size=(self.neurons[l + 1], self.neurons[l])) * norm_w
             bias[l] = np.zeros((self.neurons[l + 1], 1)) + norm_b * np.ones((self.neurons[l + 1], 1))
 
-            momentum.c_b[l] = np.zeros_like(bias[l])
-            momentum.c_w[l] = np.zeros_like(weights[l])
-            momentum.v_b[l] = np.zeros_like(bias[l])
-            momentum.v_w[l] = np.zeros_like(weights[l])
-
         self.W = weights
         self.b = bias
-        self.momentum = momentum
 
     def _get_batches(self, imgs, labels, batch_size):
         n_data = imgs.shape[1]

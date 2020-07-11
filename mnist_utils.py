@@ -40,3 +40,12 @@ def scale_imgs(imgs, scale_factor):
 
 def scale_labels(labels, scale_factor):
     return labels * scale_factor + 0.5 * (1 - scale_factor) * np.ones(labels.shape)
+
+
+def mnist_accuracy(pred_labels, labels):
+    correct = 0
+    batch_size = pred_labels.shape[1]
+    for b in range(batch_size):
+        if np.argmax(pred_labels[:, b]) == np.argmax(labels[:, b]):
+            correct += 1
+    return correct / batch_size

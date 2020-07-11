@@ -34,6 +34,6 @@ def f_b(x, act_fn, layer):
         f_p = np.multiply(f_n, (np.ones(x.shape) - f_n))
     elif act_fn == "tanh":
         f_n = np.tanh(x)
-        # TODO is this element wise
+        # TODO check elementwise corresponds with MATLAB
         f_p = np.ones(x.shape) - f_n ** 2
     return f_n, f_p

@@ -19,6 +19,12 @@ def main(cf):
     label_train = mnist_utils.get_labels(train_set)
     label_test = mnist_utils.get_labels(test_set)
 
+    if cf.datasize is not None:
+        img_train = img_train[:, 0:cf.datasize]
+        img_test = img_test[:, 0:cf.datasize]
+        label_train = label_train[:, 0:cf.datasize]
+        label_test = label_test[:, 0:cf.datasize]
+
     msg = "img_train {} img_test {} label_train {} label_test {}"
     print(msg.format(img_train.shape, img_test.shape, label_train.shape, label_test.shape))
 
@@ -39,17 +45,22 @@ def main(cf):
     for epoch in range(cf.n_epochs):
         print(f"epoch: {epoch}")
         model.train_epoch(img_train, label_train)
+        model.test(img_test, label_test)
 
 
 if __name__ == "__main__":
+    """ check elementwise squaring """
+
     cf = utils.AttrDict()
 
     cf.n_epochs = 100
     cf.batch_size = 20
+    cf.datasize = 1000
 
     cf.neurons = [784, 500, 500, 10]
     cf.n_layers = len(cf.neurons)
-    cf.act_fn = "logsig"
+    # cf.act_fn = "logsig"
+    cf.act_fn = "tanh"
 
     cf.img_scale = 1.0
     cf.label_scale = 0.94

@@ -23,11 +23,6 @@ class PredictiveCodingNetwork(object):
         self.momentum = None
         self._init_params()
 
-    def propagate(self, x, batch_size):
-        for l in range(1, self.n_layers):
-            x[l] = self.W[l - 1] @ F.f(x[l - 1], self.act_fn) + np.tile(self.b[l - 1], (1, batch_size))
-        return x
-
     def infer(self, x, batch_size):
         errors = [[] for _ in range(self.n_layers)]
         f_n_arr = [[] for _ in range(self.n_layers)]
@@ -48,10 +43,11 @@ class PredictiveCodingNetwork(object):
             for l in range(1, self.n_layers - 1):
                 g = self.W[l].T @ errors[l + 1]
                 g = np.multiply(g, f_p[l])
-                x[l] = x[l] + self.beta * (-errors[l] + g)
+                x[l] = x[l] + beta * (-errors[l] + g)
 
             f = 0
             for l in range(1, self.n_layers):
+                #  TODO are we use bias correctly?
                 f_n, f_p = F.f_b(x[l - 1], self.act_fn, l)
                 errors[l] = (x[l] - self.W[l - 1] @ f_n - self.b[l - 1]) / self.vars[l]
                 f = f - self.vars[l] * np.sum(np.multiply(errors[l], errors[l]), axis=0)
@@ -80,8 +76,9 @@ class PredictiveCodingNetwork(object):
 
             x = [[] for _ in range(self.n_layers)]
             x[0] = img_batches[batch]
-            x = self.propagate(x, batch_size)
-            x[-1] = label_batches[batch]
+            for l in range(1, self.n_layers):
+                x[l] = self.W[l - 1] @ F.f(x[l - 1], self.act_fn) + np.tile(self.b[l - 1], (1, batch_size))
+            x[self.n_layers - 1] = label_batches[batch]
 
             x, errors, _ = self.infer(x, batch_size)
 
@@ -102,7 +99,12 @@ class PredictiveCodingNetwork(object):
             if batch % 50 == 0:
                 avg_errs = [np.mean(error) for error in errors]
                 print(f"batch {batch}/{n_batches}: avg errors {avg_errs}")
-                
+
+    def test(self, imgs, labels):
+        img_batches, _, _ = self._get_batches(imgs, labels, self.batch_size)
+        n_batches = len(img_batches)
+        print(f"testing on {n_batches} batches of size {self.batch_size}")
+        return None
 
     def _init_params(self):
         momentum = utils.AttrDict()
@@ -118,6 +120,10 @@ class PredictiveCodingNetwork(object):
             norm_b = 0
             if self.act_fn == "logsig":
                 norm_w = 4 * np.sqrt(6 / (self.neurons[l + 1] + self.neurons[l]))
+            elif self.act_fn == "tanh":
+                norm_w = np.sqrt(6 / (self.neurons[l + 1] + self.neurons[l]))
+            else:
+                raise ValueError(f"{self.act_fn} not supported")
 
             weights[l] = np.random.uniform(-1, 1, size=(self.neurons[l + 1], self.neurons[l])) * norm_w
             bias[l] = np.zeros((self.neurons[l + 1], 1)) + norm_b * np.ones((self.neurons[l + 1], 1))

@@ -49,17 +49,14 @@ def main(cf):
 
 
 if __name__ == "__main__":
-    """ check elementwise squaring """
-
     cf = utils.AttrDict()
 
     cf.n_epochs = 100
     cf.batch_size = 20
-    cf.data_size = 1000
+    cf.data_size = None
 
     cf.neurons = [784, 500, 500, 10]
     cf.n_layers = len(cf.neurons)
-    # cf.act_fn = "logsig"
     cf.act_fn = "tanh"
 
     cf.img_scale = 1.0

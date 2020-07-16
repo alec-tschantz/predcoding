@@ -15,15 +15,14 @@ def main(cf):
 
     img_train = mnist_utils.get_imgs(train_set)
     img_test = mnist_utils.get_imgs(test_set)
-
     label_train = mnist_utils.get_labels(train_set)
     label_test = mnist_utils.get_labels(test_set)
 
     if cf.data_size is not None:
-        img_train = img_train[:, 0:cf.data_size]
-        img_test = img_test[:, 0:cf.data_size]
-        label_train = label_train[:, 0:cf.data_size]
-        label_test = label_test[:, 0:cf.data_size]
+        img_train = img_train[:, 0 : cf.data_size]
+        img_test = img_test[:, 0 : cf.data_size]
+        label_train = label_train[:, 0 : cf.data_size]
+        label_test = label_test[:, 0 : cf.data_size]
 
     msg = "img_train {} img_test {} label_train {} label_test {}"
     print(msg.format(img_train.shape, img_test.shape, label_train.shape, label_test.shape))
@@ -31,12 +30,10 @@ def main(cf):
     print("performing preprocessing...")
     img_train = mnist_utils.scale_imgs(img_train, cf.img_scale)
     img_test = mnist_utils.scale_imgs(img_test, cf.img_scale)
-
-    label_train = mnist_utils.scale_labels(label_train, cf.label_scale)
-    label_test = mnist_utils.scale_labels(label_test, cf.label_scale)
-
     img_train = F.f_inv(img_train, cf.act_fn)
     img_test = F.f_inv(img_test, cf.act_fn)
+    label_train = mnist_utils.scale_labels(label_train, cf.label_scale)
+    label_test = mnist_utils.scale_labels(label_test, cf.label_scale)
 
     cf.n_input = img_train.shape[0]
     model = PredictiveCodingNetwork(cf)
@@ -53,7 +50,7 @@ if __name__ == "__main__":
 
     cf.n_epochs = 100
     cf.batch_size = 20
-    cf.data_size = None
+    cf.data_size = 3000
 
     cf.neurons = [784, 500, 500, 10]
     cf.n_layers = len(cf.neurons)

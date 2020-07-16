@@ -32,23 +32,20 @@ class PredictiveCodingNetwork(object):
         beta = self.beta
 
         for l in range(1, self.n_layers):
-            b = np.tile(self.b[l - 1], (1, batch_size))
-            f_n, f_p = F.f_b(x[l - 1], self.act_fn, l)
-            errors[l] = (x[l] - self.W[l - 1] @ f_n - b) / self.vars[l]
+            f_n, f_p = F.f_b(x[l - 1], self.act_fn)
+            errors[l] = (x[l] - self.W[l - 1] @ f_n - np.tile(self.b[l - 1], (1, batch_size))) / self.vars[l]
             f_0 = f_0 - self.vars[l] * np.sum(np.multiply(errors[l], errors[l]), axis=0)
             f_n_arr[l - 1] = f_n
             f_p_arr[l - 1] = f_p
 
         for itr in range(self.itr_max):
             for l in range(1, self.n_layers - 1):
-                g = self.W[l].T @ errors[l + 1]
-                g = np.multiply(g, f_p[l])
+                g = np.multiply(self.W[l].T @ errors[l + 1], f_p[l])
                 x[l] = x[l] + beta * (-errors[l] + g)
 
             f = 0
             for l in range(1, self.n_layers):
-                #  TODO are we use bias correctly?
-                f_n, f_p = F.f_b(x[l - 1], self.act_fn, l)
+                f_n, f_p = F.f_b(x[l - 1], self.act_fn)
                 errors[l] = (x[l] - self.W[l - 1] @ f_n - self.b[l - 1]) / self.vars[l]
                 f = f - self.vars[l] * np.sum(np.multiply(errors[l], errors[l]), axis=0)
                 f_n_arr[l - 1] = f_n
@@ -66,7 +63,7 @@ class PredictiveCodingNetwork(object):
 
         return x, errors, its
 
-    def train_epoch(self, imgs, labels, log_error=False):
+    def train_epoch(self, imgs, labels, log_error=True):
         img_batches, label_batches, batch_sizes = self._get_batches(imgs, labels, self.batch_size)
         n_batches = len(img_batches)
         print(f"training on {n_batches} batches of size {self.batch_size}")
@@ -75,6 +72,7 @@ class PredictiveCodingNetwork(object):
             batch_size = batch_sizes[batch]
             x = [[] for _ in range(self.n_layers)]
             x[0] = img_batches[batch]
+
             for l in range(1, self.n_layers):
                 x[l] = self.W[l - 1] @ F.f(x[l - 1], self.act_fn) + np.tile(self.b[l - 1], (1, batch_size))
             x[self.n_layers - 1] = label_batches[batch]
@@ -94,10 +92,6 @@ class PredictiveCodingNetwork(object):
             for l in range(self.n_layers - 1):
                 self.W[l] = self.W[l] + self.l_rate * grad_w[l]
                 self.b[l] = self.b[l] + self.l_rate * np.expand_dims(grad_b[l], axis=1)
-            
-            if batch % 50 == 0 and log_error:
-                avg_errs = [np.mean(error) for error in errors]
-                print(f"batch {batch}/{n_batches}: avg errors {avg_errs}")
 
     def test(self, imgs, labels):
         img_batches, label_batches, batch_sizes = self._get_batches(imgs, labels, self.batch_size)
@@ -113,7 +107,6 @@ class PredictiveCodingNetwork(object):
                 x[l] = self.W[l - 1] @ F.f(x[l - 1], self.act_fn) + np.tile(self.b[l - 1], (1, batch_size))
             acc = mnist_utils.mnist_accuracy(x[-1], label_batches[batch])
             accs.append(acc)
-
         print(f"average accuracy {np.mean(np.array(accs))}")
 
     def _init_params(self):

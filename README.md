@@ -1,6 +1,6 @@
-# Predictive Coding in `Python`
+### Predictive Coding in `Python`
 
-<img alt="logo" src="https://www.frontiersin.org/files/Articles/18458/fpsyg-02-00395-r3/image_m/fpsyg-02-00395-g003.jpg" height="180"> 
+## <img alt="logo" src="https://www.frontiersin.org/files/Articles/18458/fpsyg-02-00395-r3/image_m/fpsyg-02-00395-g003.jpg" height="180"> 
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) 
 
@@ -12,4 +12,4 @@ Based on the `MATLAB` [implementation](https://github.com/djcrw/Supervised-Predi
 
 ## Requirements
 - `numpy`
-- `torchvision` (for MNIST)
+- `torchvision` 

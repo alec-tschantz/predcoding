@@ -14,13 +14,13 @@ def set_tensor(arr, device):
 
 class PredictiveCodingNetwork(object):
     def __init__(self, cf):
+        self.device = cf.device
         self.n_layers = cf.n_layers
         self.act_fn = cf.act_fn
         self.neurons = cf.neurons
-        self.vars = cf.vars
+        self.vars = cf.vars.float().to(self.device)
         self.itr_max = cf.itr_max
         self.batch_size = cf.batch_size
-        self.device = cf.device
 
         self.beta = cf.beta
         self.div = cf.div
@@ -39,7 +39,11 @@ class PredictiveCodingNetwork(object):
         self._init_params()
 
     def train_epoch(self, img_batches, label_batches):
-        for img_batch, label_batch in zip(img_batches, label_batches):
+        for batch_id, (img_batch, label_batch) in enumerate(zip(img_batches, label_batches)):
+            
+            if batch_id % 500 == 0 and batch_id > 0:
+                print(f"batch {batch_id}")
+
             img_batch = set_tensor(img_batch, self.device)
             label_batch = set_tensor(label_batch, self.device)
             batch_size = img_batch.size(1)

@@ -59,7 +59,7 @@ def main(cf):
             img_batches, label_batches = mnist_utils.get_batches(img_test, label_test, cf.batch_size)
             print(f"testing on {len(img_batches)} batches of size {cf.batch_size}")
             accs = model.test_epoch(img_batches, label_batches)
-            print(f"average batch accuracy {np.mean(np.array(accs))}")
+            print(f"average accuracy {np.mean(np.array(accs))}")
 
             perm = np.random.permutation(img_train.shape[1])
             img_train = img_train[:, perm]
@@ -92,7 +92,7 @@ if __name__ == "__main__":
 
     # optim parameters
     cf.l_rate = 1e-3
-    cf.optim = "RMSPROP"
+    cf.optim = "SGD"
     cf.eps = 1e-8
     cf.decay_r = 0.9
 

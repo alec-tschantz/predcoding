@@ -1,3 +1,7 @@
+# pylint: disable=not-callable
+# pylint: disable=no-member
+
+import torch
 import numpy as np
 
 LINEAR = "linear"
@@ -10,8 +14,9 @@ def f(x, act_fn):
     if act_fn is LINEAR:
         m = x
     elif act_fn is TANH:
-        m = np.tanh(x)
+        m = torch.tanh(x)
     elif act_fn is LOGSIG:
+        # TODO
         m = np.divide(1, (np.ones(x.shape) + np.exp(-x)) + 1e-7)
     else:
         raise ValueError(f"{act_fn} not supported")
@@ -23,8 +28,9 @@ def f_deriv(x, act_fn):
     if act_fn is LINEAR:
         deriv = np.ones(x.shape)
     elif act_fn is TANH:
-        deriv = np.ones(x.shape) - np.tanh(x) ** 2
+        deriv = torch.ones_like(x) - torch.tanh(x) ** 2
     elif act_fn is LOGSIG:
+        # TODO
         f = np.divide(1, (np.ones(x.shape) + np.exp(-x)) + 1e-7)
         deriv = np.multiply(f, (np.ones(x.shape) - f))
     else:

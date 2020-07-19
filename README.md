@@ -15,6 +15,7 @@ Based on the `MATLAB` [implementation](https://github.com/djcrw/Supervised-Predi
 - `torch`
 - `torchvision` 
 
-## Tasks
+
+## Tasks
 - Include model from _A tutorial on the free-energy framework for modelling perception and learning_
 - Add additional optimisers

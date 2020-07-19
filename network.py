@@ -28,6 +28,34 @@ class PredictiveCodingNetwork(object):
         self.b = None
         self._init_params()
 
+    def train_epoch(self, img_batches, label_batches):
+        for img_batch, label_batch in zip(img_batches, label_batches):
+            batch_size = img_batch.shape[1]
+
+            x = [[] for _ in range(self.n_layers)]
+            x[0] = img_batch
+            for l in range(1, self.n_layers):
+                x[l] = self.W[l - 1] @ F.f(x[l - 1], self.act_fn) + np.tile(self.b[l - 1], (1, batch_size))
+            x[self.n_layers - 1] = label_batch
+
+            x, errors, _ = self.infer(x, batch_size)
+            self.update_params(x, errors, batch_size)
+
+    def test_epoch(self, img_batches, label_batches):
+        accs = []
+        for img_batch, label_batch in zip(img_batches, label_batches):
+            batch_size = img_batch.shape[1]
+
+            x = [[] for _ in range(self.n_layers)]
+            x[0] = img_batch
+            for l in range(1, self.n_layers):
+                x[l] = self.W[l - 1] @ F.f(x[l - 1], self.act_fn) + np.tile(self.b[l - 1], (1, batch_size))
+            pred_label = x[-1]
+
+            acc = mnist_utils.mnist_accuracy(pred_label, label_batch)
+            accs.append(acc)
+        return accs
+
     def infer(self, x, batch_size):
         errors = [[] for _ in range(self.n_layers)]
         f_x_arr = [[] for _ in range(self.n_layers)]
@@ -82,34 +110,6 @@ class PredictiveCodingNetwork(object):
             grad_b[l] = self.vars[-1] * (1 / batch_size) * np.sum(errors[l + 1], axis=1)
 
         self._apply_gradients(grad_w, grad_b)
-
-    def train_epoch(self, img_batches, label_batches):
-        for img_batch, label_batch in zip(img_batches, label_batches):
-            batch_size = img_batch.shape[1]
-
-            x = [[] for _ in range(self.n_layers)]
-            x[0] = img_batch
-            for l in range(1, self.n_layers):
-                x[l] = self.W[l - 1] @ F.f(x[l - 1], self.act_fn) + np.tile(self.b[l - 1], (1, batch_size))
-            x[self.n_layers - 1] = label_batch
-
-            x, errors, _ = self.infer(x, batch_size)
-            self.update_params(x, errors, batch_size)
-
-    def test_epoch(self, img_batches, label_batches):
-        accs = []
-        for img_batch, label_batch in zip(img_batches, label_batches):
-            batch_size = img_batch.shape[1]
-
-            x = [[] for _ in range(self.n_layers)]
-            x[0] = img_batch
-            for l in range(1, self.n_layers):
-                x[l] = self.W[l - 1] @ F.f(x[l - 1], self.act_fn) + np.tile(self.b[l - 1], (1, batch_size))
-            pred_label = x[-1]
-
-            acc = mnist_utils.mnist_accuracy(pred_label, label_batch)
-            accs.append(acc)
-        return accs
 
     def _apply_gradients(self, grad_w, grad_b):
         if self.optim is "RMSPROP":

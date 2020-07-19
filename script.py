@@ -57,12 +57,16 @@ def main(cf):
         accs = model.test_epoch(img_batches, label_batches)
         print(f"average batch accuracy {np.mean(np.array(accs))}")
 
+        perm = np.random.permutation(img_train.shape[1])
+        img_train = img_train[:, perm]
+        label_train = label_train[:, perm]
+
 
 if __name__ == "__main__":
     cf = AttrDict()
 
     cf.n_epochs = 100
-    cf.data_size = 3000
+    cf.data_size = 1000
     cf.batch_size = 20
 
     cf.apply_inv = True

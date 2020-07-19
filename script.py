@@ -3,9 +3,13 @@
 import numpy as np
 
 import mnist_utils
-import utils
 import functions as F
 from network import PredictiveCodingNetwork
+
+
+class AttrDict(dict):
+    __setattr__ = dict.__setitem__
+    __getattr__ = dict.__getitem__
 
 
 def main(cf):
@@ -19,55 +23,70 @@ def main(cf):
     label_test = mnist_utils.get_labels(test_set)
 
     if cf.data_size is not None:
+        test_size = cf.data_size // 5
         img_train = img_train[:, 0 : cf.data_size]
-        img_test = img_test[:, 0 : cf.data_size]
         label_train = label_train[:, 0 : cf.data_size]
-        label_test = label_test[:, 0 : cf.data_size]
+        img_test = img_test[:, 0:test_size]
+        label_test = label_test[:, 0:test_size]
 
     msg = "img_train {} img_test {} label_train {} label_test {}"
     print(msg.format(img_train.shape, img_test.shape, label_train.shape, label_test.shape))
 
     print("performing preprocessing...")
-    img_train = mnist_utils.scale_imgs(img_train, cf.img_scale)
-    img_test = mnist_utils.scale_imgs(img_test, cf.img_scale)
-    img_train = F.f_inv(img_train, cf.act_fn)
-    img_test = F.f_inv(img_test, cf.act_fn)
-    label_train = mnist_utils.scale_labels(label_train, cf.label_scale)
-    label_test = mnist_utils.scale_labels(label_test, cf.label_scale)
+    if cf.apply_scaling:
+        img_train = mnist_utils.scale_imgs(img_train, cf.img_scale)
+        img_test = mnist_utils.scale_imgs(img_test, cf.img_scale)
+        label_train = mnist_utils.scale_labels(label_train, cf.label_scale)
+        label_test = mnist_utils.scale_labels(label_test, cf.label_scale)
 
-    cf.n_input = img_train.shape[0]
+    if cf.apply_inv:
+        img_train = F.f_inv(img_train, cf.act_fn)
+        img_test = F.f_inv(img_test, cf.act_fn)
+
     model = PredictiveCodingNetwork(cf)
 
-    print("starting training...")
     for epoch in range(cf.n_epochs):
-        print(f"\nepoch: {epoch}")
-        model.train_epoch(img_train, label_train)
-        model.test(img_test, label_test)
+        print(f"\nepoch {epoch}")
+
+        img_batches, label_batches = mnist_utils.get_batches(img_train, label_train, cf.batch_size)
+        print(f"training on {len(img_batches)} batches of size {cf.batch_size}")
+        model.train_epoch(img_batches, label_batches)
+
+        img_batches, label_batches = mnist_utils.get_batches(img_test, label_test, cf.batch_size)
+        print(f"testing on {len(img_batches)} batches of size {cf.batch_size}")
+        accs = model.test_epoch(img_batches, label_batches)
+        print(f"average batch accuracy {np.mean(np.array(accs))}")
 
 
 if __name__ == "__main__":
-    cf = utils.AttrDict()
+    cf = AttrDict()
 
     cf.n_epochs = 100
-    cf.batch_size = 20
     cf.data_size = 3000
+    cf.batch_size = 20
+
+    cf.apply_inv = True
+    cf.apply_scaling = True
+    cf.label_scale = 0.94
+    cf.img_scale = 1.0
 
     cf.neurons = [784, 500, 500, 10]
     cf.n_layers = len(cf.neurons)
-    cf.act_fn = "tanh"
-
-    cf.img_scale = 1.0
-    cf.label_scale = 0.94
-
+    cf.act_fn = F.TANH
     cf.var_out = 1
     cf.vars = np.ones(cf.n_layers)
 
     cf.itr_max = 50
     cf.beta = 0.1
     cf.div = 2
-    cf.d_rate = 0 * 0.001
-    cf.l_rate = 1e-3
     cf.condition = 1e-6
+    cf.d_rate = 0
+
+    # optim parameters
+    cf.l_rate = 1e-3
+    cf.optim = "RMSPROP"
+    cf.eps = 1e-8
+    cf.decay_r = 0.9
 
     main(cf)
 

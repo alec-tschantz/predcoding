@@ -49,3 +49,25 @@ def mnist_accuracy(pred_labels, labels):
         if np.argmax(pred_labels[:, b]) == np.argmax(labels[:, b]):
             correct += 1
     return correct / batch_size
+
+
+def get_batches(imgs, labels, batch_size):
+    n_data = imgs.shape[1]
+    n_batches = int(np.ceil(n_data / batch_size))
+
+    img_batches = [[] for _ in range(n_batches)]
+    label_batches = [[] for _ in range(n_batches)]
+
+    for batch in range(n_batches):
+        if batch == n_batches - 1:
+            start = batch * batch_size
+            img_batches[batch] = imgs[:, start:]
+            label_batches[batch] = labels[:, start:]
+        else:
+            start = batch * batch_size
+            end = (batch + 1) * batch_size
+            img_batches[batch] = imgs[:, start:end]
+            label_batches[batch] = labels[:, start:end]
+
+    return img_batches, label_batches
+

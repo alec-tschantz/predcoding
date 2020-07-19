@@ -30,30 +30,32 @@ class PredictiveCodingNetwork(object):
 
     def infer(self, x, batch_size):
         errors = [[] for _ in range(self.n_layers)]
-        f_n_arr = [[] for _ in range(self.n_layers)]
-        f_p_arr = [[] for _ in range(self.n_layers)]
+        f_x_arr = [[] for _ in range(self.n_layers)]
+        f_x_deriv_arr = [[] for _ in range(self.n_layers)]
         f_0 = 0
         its = 0
         beta = self.beta
 
         for l in range(1, self.n_layers):
-            f_n, f_p = F.f_b(x[l - 1], self.act_fn)
-            errors[l] = (x[l] - self.W[l - 1] @ f_n - np.tile(self.b[l - 1], (1, batch_size))) / self.vars[l]
+            f_x = F.f(x[l - 1], self.act_fn)
+            f_x_deriv = F.f_deriv(x[l - 1], self.act_fn)
+            errors[l] = (x[l] - self.W[l - 1] @ f_x - np.tile(self.b[l - 1], (1, batch_size))) / self.vars[l]
             f_0 = f_0 - self.vars[l] * np.sum(np.multiply(errors[l], errors[l]), axis=0)
-            f_n_arr[l - 1] = f_n
-            f_p_arr[l - 1] = f_p
+            f_x_arr[l - 1] = f_x
+            f_x_deriv_arr[l - 1] = f_x_deriv
 
         for itr in range(self.itr_max):
             for l in range(1, self.n_layers - 1):
-                g = np.multiply(self.W[l].T @ errors[l + 1], f_p_arr[l])
+                g = np.multiply(self.W[l].T @ errors[l + 1], f_x_deriv_arr[l])
                 x[l] = x[l] + beta * (-errors[l] + g)
 
             f = 0
             for l in range(1, self.n_layers):
-                f_n, f_p = F.f_b(x[l - 1], self.act_fn)
-                f_n_arr[l - 1] = f_n
-                f_p_arr[l - 1] = f_p
-                errors[l] = (x[l] - self.W[l - 1] @ f_n - self.b[l - 1]) / self.vars[l]
+                f_x = F.f(x[l - 1], self.act_fn)
+                f_x_deriv = F.f_deriv(x[l - 1], self.act_fn)
+                f_x_arr[l - 1] = f_x
+                f_x_deriv_arr[l - 1] = f_x_deriv
+                errors[l] = (x[l] - self.W[l - 1] @ f_x - self.b[l - 1]) / self.vars[l]
                 f = f - self.vars[l] * np.sum(np.multiply(errors[l], errors[l]), axis=0)
 
             diff = f - f_0
@@ -139,8 +141,6 @@ class PredictiveCodingNetwork(object):
                 norm_w = np.sqrt(6 / (self.neurons[l + 1] + self.neurons[l]))
             elif self.act_fn is F.LOGSIG:
                 norm_w = 4 * np.sqrt(6 / (self.neurons[l + 1] + self.neurons[l]))
-            elif self.act_fn is F.EXP:
-                norm_w = np.sqrt(6 / (self.neurons[l + 1] + self.neurons[l]))
             else:
                 raise ValueError(f"{self.act_fn} not supported")
 

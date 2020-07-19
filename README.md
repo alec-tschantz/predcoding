@@ -1,10 +1,12 @@
-# Predictive Coding in Python
+# `Python` Predictive Coding 
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) 
 
-A `Python` implementation of supervised predictive coding, introduced in [An Approximation of the Error Backpropagation Algorithm in a Predictive Coding Network with Local Hebbian Synaptic Plasticity](https://www.mrcbndu.ox.ac.uk/sites/default/files/pdf_files/Whittington%20Bogacz%202017_Neural%20Comput.pdf)
+A `Python` implementation of `supervised predictive coding`, introduced in *__An Approximation of the Error Backpropagation Algorithm in a Predictive Coding Network with Local Hebbian Synaptic Plasticity__* 
 
-Based on the `MATLAB` implementation from [`@djcrw`](https://github.com/djcrw/Supervised-Predictive-Coding)
+[[Paper](https://www.mrcbndu.ox.ac.uk/sites/default/files/pdf_files/Whittington%20Bogacz%202017_Neural%20Comput.pdf)]
+
+Based on the `MATLAB` [implementation](https://github.com/djcrw/Supervised-Predictive-Coding) from [`@djcrw`]
 
 ## Requirements
 - `numpy`
@@ -12,5 +14,5 @@ Based on the `MATLAB` implementation from [`@djcrw`](https://github.com/djcrw/Su
 
 ## Tasks
 - Add `Adam` optimizer 
-- Check all activation functions
-- Visualize activity
+- Add additional activation functions
+

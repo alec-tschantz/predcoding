@@ -66,7 +66,7 @@ if __name__ == "__main__":
     cf = AttrDict()
 
     cf.n_epochs = 100
-    cf.data_size = 1000
+    cf.data_size = None
     cf.batch_size = 20
 
     cf.apply_inv = True
@@ -88,7 +88,7 @@ if __name__ == "__main__":
 
     # optim parameters
     cf.l_rate = 1e-3
-    cf.optim = "RMSPROP"
+    cf.optim = "SGD"
     cf.eps = 1e-8
     cf.decay_r = 0.9
 

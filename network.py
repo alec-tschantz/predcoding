@@ -40,7 +40,7 @@ class PredictiveCodingNetwork(object):
 
     def train_epoch(self, img_batches, label_batches):
         for batch_id, (img_batch, label_batch) in enumerate(zip(img_batches, label_batches)):
-            
+
             if batch_id % 500 == 0 and batch_id > 0:
                 print(f"batch {batch_id}")
 
@@ -48,6 +48,7 @@ class PredictiveCodingNetwork(object):
             label_batch = set_tensor(label_batch, self.device)
             batch_size = img_batch.size(1)
 
+            # init activations
             x = [[] for _ in range(self.n_layers)]
             x[0] = img_batch
             for l in range(1, self.n_layers):
@@ -84,10 +85,12 @@ class PredictiveCodingNetwork(object):
         its = 0
         beta = self.beta
 
+        # init inference
         for l in range(1, self.n_layers):
             f_x = F.f(x[l - 1], self.act_fn)
             f_x_deriv = F.f_deriv(x[l - 1], self.act_fn)
 
+            # eq. 2.17
             b = self.b[l - 1].repeat(1, batch_size)
             errors[l] = (x[l] - self.W[l - 1] @ f_x - b) / self.vars[l]
 
@@ -96,10 +99,13 @@ class PredictiveCodingNetwork(object):
             f_x_derivs[l - 1] = f_x_deriv
 
         for itr in range(self.itr_max):
+            # update node activity
             for l in range(1, self.n_layers - 1):
+                # eq. 2.18
                 g = torch.mul(self.W[l].T @ errors[l + 1], f_x_derivs[l])
                 x[l] = x[l] + beta * (-errors[l] + g)
 
+            # update errors
             f = 0
             for l in range(1, self.n_layers):
                 f_x = F.f(x[l - 1], self.act_fn)
@@ -107,6 +113,7 @@ class PredictiveCodingNetwork(object):
                 f_xs[l - 1] = f_x
                 f_x_derivs[l - 1] = f_x_deriv
 
+                # eq. 2.17
                 errors[l] = (x[l] - self.W[l - 1] @ f_x - self.b[l - 1]) / self.vars[l]
                 f = f - self.vars[l] * torch.sum(torch.mul(errors[l], errors[l]), dim=0)
 
@@ -126,13 +133,14 @@ class PredictiveCodingNetwork(object):
         grad_b = [[] for _ in range(self.n_layers - 1)]
 
         for l in range(self.n_layers - 1):
+            # eq. 2.19 (with weight decay)
             grad_w[l] = (
                 self.vars[-1] * (1 / batch_size) * errors[l + 1] @ F.f(x[l], self.act_fn).T
                 - self.d_rate * self.W[l]
             )
             grad_b[l] = self.vars[-1] * (1 / batch_size) * torch.sum(errors[l + 1], axis=1)
 
-        self._apply_gradients(grad_w, grad_b)
+        self._apply_gradients(grad_w,  grad_b)
 
     def _init_params(self):
         weights = [[] for _ in range(self.n_layers)]

@@ -56,10 +56,12 @@ def main(cf):
             print(f"training on {len(img_batches)} batches of size {cf.batch_size}")
             model.train_epoch(img_batches, label_batches)
 
+            """
             img_batches, label_batches = mnist_utils.get_batches(img_test, label_test, cf.batch_size)
             print(f"testing on {len(img_batches)} batches of size {cf.batch_size}")
             accs = model.test_epoch(img_batches, label_batches)
             print(f"average accuracy {np.mean(np.array(accs))}")
+            """
 
             perm = np.random.permutation(img_train.shape[1])
             img_train = img_train[:, perm]

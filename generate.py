@@ -69,10 +69,10 @@ def main(cf):
 if __name__ == "__main__":
     cf = AttrDict()
 
-    cf.img_path = "img/{}.png"
+    cf.img_path = "imgs/{}.png"
 
     cf.n_epochs = 100
-    cf.data_size = 500
+    cf.data_size = None
     cf.batch_size = 20
 
     cf.apply_inv = True

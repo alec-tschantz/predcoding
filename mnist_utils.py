@@ -74,6 +74,7 @@ def get_batches(imgs, labels, batch_size):
 
 
 def plot_imgs(img_batch, save_path):
+    img_batch = img_batch.detach().cpu().numpy()
     batch_size = img_batch.shape[1]
     dim = nearest_square(batch_size)
 
@@ -81,8 +82,8 @@ def plot_imgs(img_batch, save_path):
     _, axes = plt.subplots(dim, dim)
     axes = axes.flatten()
     for i, img in enumerate(imgs):
-        axes[i].imshow(img, cmap="gray")
-
+        axes[i].imshow(img)
+        axes[i].set_axis_off()
     plt.savefig(save_path)
 
 

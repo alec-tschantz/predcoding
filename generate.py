@@ -54,12 +54,12 @@ def main(cf):
 
             img_batches, label_batches = mnist_utils.get_batches(img_train, label_train, cf.batch_size)
             print(f"training on {len(img_batches)} batches of size {cf.batch_size}")
-            model.train_epoch(img_batches, label_batches)
+            model.train_epoch(label_batches, img_batches)
 
             img_batches, label_batches = mnist_utils.get_batches(img_test, label_test, cf.batch_size)
-            print(f"testing on {len(img_batches)} batches of size {cf.batch_size}")
-            accs = model.test_epoch(img_batches, label_batches)
-            print(f"average accuracy {np.mean(np.array(accs))}")
+            print("generating images...")
+            pred_imgs = model.generate_data(label_batches[0])
+            mnist_utils.plot_imgs(pred_imgs, cf.img_path.format(epoch))
 
             perm = np.random.permutation(img_train.shape[1])
             img_train = img_train[:, perm]
@@ -69,8 +69,10 @@ def main(cf):
 if __name__ == "__main__":
     cf = AttrDict()
 
+    cf.img_path = "img/{}.png"
+
     cf.n_epochs = 100
-    cf.data_size = 1000
+    cf.data_size = 500
     cf.batch_size = 20
 
     cf.apply_inv = True
@@ -78,7 +80,7 @@ if __name__ == "__main__":
     cf.label_scale = 0.94
     cf.img_scale = 1.0
 
-    cf.neurons = [784, 500, 500, 10]
+    cf.neurons = [10, 500, 500, 784]
     cf.n_layers = len(cf.neurons)
     cf.act_fn = F.TANH
     cf.var_out = 1

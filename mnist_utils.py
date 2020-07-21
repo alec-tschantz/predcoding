@@ -2,6 +2,7 @@
 # pylint: disable=no-member
 
 import numpy as np
+import matplotlib.pyplot as plt
 import torch
 import torchvision
 
@@ -70,4 +71,24 @@ def get_batches(imgs, labels, batch_size):
             label_batches[batch] = labels[:, start:end]
 
     return img_batches, label_batches
+
+
+def plot_imgs(img_batch, save_path):
+    batch_size = img_batch.shape[1]
+    dim = nearest_square(batch_size)
+
+    imgs = [np.reshape(img_batch[:, i], [28, 28]) for i in range(dim ** 2)]
+    _, axes = plt.subplots(dim, dim)
+    axes = axes.flatten()
+    for i, img in enumerate(imgs):
+        axes[i].imshow(img, cmap="gray")
+
+    plt.savefig(save_path)
+
+
+def nearest_square(limit):
+    answer = 0
+    while (answer + 1) ** 2 < limit:
+        answer += 1
+    return answer
 

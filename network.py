@@ -38,71 +38,80 @@ class PredictiveCodingNetwork(object):
         self.b = None
         self._init_params()
 
-    def train_epoch(self, img_batches, label_batches):
-        for batch_id, (img_batch, label_batch) in enumerate(zip(img_batches, label_batches)):
+    def train_epoch(self, x_batches, y_batches):
+        for batch_id, (x_batch, y_batch) in enumerate(zip(x_batches, y_batches)):
 
             if batch_id % 500 == 0 and batch_id > 0:
                 print(f"batch {batch_id}")
 
-            img_batch = set_tensor(img_batch, self.device)
-            label_batch = set_tensor(label_batch, self.device)
-            batch_size = img_batch.size(1)
+            x_batch = set_tensor(x_batch, self.device)
+            y_batch = set_tensor(y_batch, self.device)
+            batch_size = x_batch.size(1)
 
-            # init activations
             x = [[] for _ in range(self.n_layers)]
-            x[0] = img_batch
+            x[0] = x_batch
             for l in range(1, self.n_layers):
                 b = self.b[l - 1].repeat(1, batch_size)
                 x[l] = self.W[l - 1] @ F.f(x[l - 1], self.act_fn) + b
-            x[self.n_layers - 1] = label_batch
+            x[self.n_layers - 1] = y_batch
 
             x, errors, _ = self.infer(x, batch_size)
             self.update_params(x, errors, batch_size)
 
-    def test_epoch(self, img_batches, label_batches):
+    def test_epoch(self, x_batches, y_batches):
         accs = []
-        for img_batch, label_batch in zip(img_batches, label_batches):
-            img_batch = set_tensor(img_batch, self.device)
-            label_batch = set_tensor(label_batch, self.device)
-            batch_size = img_batch.size(1)
+        for x_batch, y_batch in zip(x_batches, y_batches):
+            x_batch = set_tensor(x_batch, self.device)
+            y_batch = set_tensor(y_batch, self.device)
+            batch_size = x_batch.size(1)
 
             x = [[] for _ in range(self.n_layers)]
-            x[0] = img_batch
+            x[0] = x_batch
             for l in range(1, self.n_layers):
                 b = self.b[l - 1].repeat(1, batch_size)
                 x[l] = self.W[l - 1] @ F.f(x[l - 1], self.act_fn) + b
-            pred_label = x[-1]
+            pred_y = x[-1]
 
-            acc = mnist_utils.mnist_accuracy(pred_label, label_batch)
+            acc = mnist_utils.mnist_accuracy(pred_y, y_batch)
             accs.append(acc)
         return accs
 
+    def generate_data(self, x_batch):
+        x_batch = set_tensor(x_batch, self.device)
+        batch_size = x_batch.size(1)
+
+        x = [[] for _ in range(self.n_layers)]
+        x[0] = x_batch
+        for l in range(1, self.n_layers):
+            b = self.b[l - 1].repeat(1, batch_size)
+            x[l] = self.W[l - 1] @ F.f(x[l - 1], self.act_fn) + b
+        pred_y = x[-1]
+        return pred_y
+
     def infer(self, x, batch_size):
         errors = [[] for _ in range(self.n_layers)]
-        f_xs = [[] for _ in range(self.n_layers)]
-        f_x_derivs = [[] for _ in range(self.n_layers)]
+        f_x_arr = [[] for _ in range(self.n_layers)]
+        f_x_deriv_arr = [[] for _ in range(self.n_layers)]
         f_0 = 0
         its = 0
         beta = self.beta
 
-        # init inference
         for l in range(1, self.n_layers):
             f_x = F.f(x[l - 1], self.act_fn)
             f_x_deriv = F.f_deriv(x[l - 1], self.act_fn)
+            f_x_arr[l - 1] = f_x
+            f_x_deriv_arr[l - 1] = f_x_deriv
 
             # eq. 2.17
             b = self.b[l - 1].repeat(1, batch_size)
             errors[l] = (x[l] - self.W[l - 1] @ f_x - b) / self.vars[l]
-
             f_0 = f_0 - self.vars[l] * torch.sum(torch.mul(errors[l], errors[l]), dim=0)
-            f_xs[l - 1] = f_x
-            f_x_derivs[l - 1] = f_x_deriv
 
         for itr in range(self.itr_max):
             # update node activity
             for l in range(1, self.n_layers - 1):
                 # eq. 2.18
-                g = torch.mul(self.W[l].T @ errors[l + 1], f_x_derivs[l])
+                g = torch.mul(self.W[l].T @ errors[l + 1], f_x_deriv_arr[l])
                 x[l] = x[l] + beta * (-errors[l] + g)
 
             # update errors
@@ -110,8 +119,8 @@ class PredictiveCodingNetwork(object):
             for l in range(1, self.n_layers):
                 f_x = F.f(x[l - 1], self.act_fn)
                 f_x_deriv = F.f_deriv(x[l - 1], self.act_fn)
-                f_xs[l - 1] = f_x
-                f_x_derivs[l - 1] = f_x_deriv
+                f_x_arr[l - 1] = f_x
+                f_x_deriv_arr[l - 1] = f_x_deriv
 
                 # eq. 2.17
                 errors[l] = (x[l] - self.W[l - 1] @ f_x - self.b[l - 1]) / self.vars[l]
@@ -140,7 +149,7 @@ class PredictiveCodingNetwork(object):
             )
             grad_b[l] = self.vars[-1] * (1 / batch_size) * torch.sum(errors[l + 1], axis=1)
 
-        self._apply_gradients(grad_w,  grad_b)
+        self._apply_gradients(grad_w, grad_b)
 
     def _init_params(self):
         weights = [[] for _ in range(self.n_layers)]

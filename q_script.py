@@ -6,7 +6,7 @@ import torch
 
 import mnist_utils
 import functions as F
-from network import PredictiveCodingNetwork
+from q_network import QCodingNetwork
 
 
 class AttrDict(dict):
@@ -46,7 +46,7 @@ def main(cf):
         img_train = F.f_inv(img_train, cf.act_fn)
         img_test = F.f_inv(img_test, cf.act_fn)
 
-    model = PredictiveCodingNetwork(cf)
+    model = QCodingNetwork(cf)
 
     with torch.no_grad():
         for epoch in range(cf.n_epochs):
@@ -56,9 +56,10 @@ def main(cf):
             print(f"training on {len(img_batches)} batches of size {cf.batch_size}")
             model.train_epoch(img_batches, label_batches)
 
+
             img_batches, label_batches = mnist_utils.get_batches(img_test, label_test, cf.batch_size)
             print(f"testing on {len(img_batches)} batches of size {cf.batch_size}")
-            accs = model.test_epoch(img_batches, label_batches)
+            accs = model.test_amortised(img_batches, label_batches)
             print(f"average accuracy {np.mean(np.array(accs))}")
 
             perm = np.random.permutation(img_train.shape[1])
@@ -71,14 +72,14 @@ if __name__ == "__main__":
 
     cf.n_epochs = 100
     cf.data_size = 1000
-    cf.batch_size = 128
+    cf.batch_size = 20
 
     cf.apply_inv = True
     cf.apply_scaling = True
     cf.label_scale = 0.94
     cf.img_scale = 1.0
 
-    cf.neurons = [784, 500, 500, 10]
+    cf.neurons = [10, 256, 500, 784]
     cf.n_layers = len(cf.neurons)
     cf.act_fn = F.TANH
     cf.var_out = 1
@@ -92,7 +93,7 @@ if __name__ == "__main__":
 
     # optim parameters
     cf.l_rate = 1e-4
-    cf.optim = "RMSPROP"
+    cf.optim = "SGD"
     cf.eps = 1e-8
     cf.decay_r = 0.9
 

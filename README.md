@@ -20,4 +20,5 @@ Based on the `MATLAB` [implementation](https://github.com/djcrw/Supervised-Predi
 - Include model from _A tutorial on the free-energy framework for modelling perception and learning_
 - Add additional optimisers
 - Measure number of iterations
-- The initial space of mu needs to be sufficently large, ensembles of amortised weights?
+- The initial space of mu needs to be sufficently large - ensembles of amortised weights or slow learning rate?
+- Test pure PC accuracy

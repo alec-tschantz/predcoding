@@ -89,7 +89,7 @@ class QCodingNetwork(object):
             init_err += self.get_errors(x, batch_size)
 
             x, errors, _ = self.infer(x, batch_size)
-            self.update_params(x, q, errors, batch_size, epoch_num=epoch_num, n_batches=n_batches, curr_batch=batch_id)
+            self.update_params(x, q, errors, batch_size, x_batch, y_batch, epoch_num=epoch_num, n_batches=n_batches, curr_batch=batch_id)
 
             end_err += self.get_errors(x, batch_size)
 
@@ -119,7 +119,6 @@ class QCodingNetwork(object):
             acc = mnist_utils.mnist_accuracy(pred_y, y_batch)
             accs.append(acc)
         return accs
-
 
     def generate_data(self, x_batch):
         x_batch = set_tensor(x_batch, self.device)
@@ -184,7 +183,7 @@ class QCodingNetwork(object):
         
         return x, errors, its
 
-    def update_params(self, x, q, errors, batch_size, epoch_num=None, n_batches=None, curr_batch=None):
+    def update_params(self, x, q, errors, batch_size, x_batch, y_batch, epoch_num=None, n_batches=None, curr_batch=None):
 
         grad_w = [[] for _ in range(self.n_layers - 1)]
         grad_b = [[] for _ in range(self.n_layers - 1)]
@@ -204,7 +203,7 @@ class QCodingNetwork(object):
 
             q_errs = [[] for _ in range(self.n_layers - 1)]
             q_errs[0] = x[2] - q[2]
-            fn_deriv = F.f_deriv(torch.matmul(x[3].T, self.W_q[0].T), self.act_fn)
+            fn_deriv = F.f_deriv(torch.matmul(x_batch.T, self.W_q[0].T), self.act_fn)
             grad_w_q[0] = torch.matmul(x[3], q_errs[0].T * fn_deriv)
             grad_b_q[0] = self.vars[-1] * (1 / batch_size) * torch.sum(q_errs[0], axis=1)
 
@@ -213,7 +212,8 @@ class QCodingNetwork(object):
             grad_w_q[1] = torch.matmul(x[2], q_errs[1].T * fn_deriv)
             grad_b_q[1] = self.vars[-1] * (1 / batch_size) * torch.sum(q_errs[1], axis=1)
 
-            q_errs[2] = x[0] - q[0]
+            # q_errs[2] = x[0] - q[0]
+            q_errs[2] = y_batch - q[0]
             fn_deriv = F.f_deriv(torch.matmul(x[1].T, self.W_q[2].T), self.act_fn)
             grad_w_q[2] = torch.matmul(x[1], q_errs[2].T * fn_deriv)
             grad_b_q[2] = self.vars[-1] * (1 / batch_size) * torch.sum(q_errs[2], axis=1)
@@ -319,7 +319,7 @@ class QCodingNetwork(object):
                     grad_b_q[l] = grad_b_q[l].unsqueeze(dim=1)
                  
                     self.c_b_q[l] = self.beta_1 * self.c_b_q[l] + (1 - self.beta_1) * grad_b_q[l]
-                    self.c_w_q[l] = self.beta_1 * self.c_w_q[l] + (1 - self.beta_1) * grad_w_q[l].T                    
+                    self.c_w_q[l] = self.beta_1 * self.c_w_q[l] + (1 - self.beta_1) * grad_w_q[l].T
 
                     self.v_b_q[l] = self.beta_2 * self.v_b_q[l] + (1 - self.beta_2) * grad_b_q[l] ** 2
                     self.v_w_q[l] = self.beta_2 * self.v_w_q[l] + (1 - self.beta_2) * grad_w_q[l].T  ** 2

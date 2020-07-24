@@ -82,7 +82,7 @@ if __name__ == "__main__":
     cf.amortised = True
 
     cf.img_path = "imgs/{}.png"
-    cf.test_every = 5
+    cf.test_every = 1
 
     cf.n_epochs = 100
     cf.data_size = None
@@ -99,15 +99,15 @@ if __name__ == "__main__":
     cf.var_out = 1
     cf.vars = torch.ones(cf.n_layers)
 
-    cf.itr_max = 50
+    cf.itr_max = 100
     cf.beta = 0.1
     cf.div = 2
     cf.condition = 1e-6
-    cf.d_rate = 9
+    cf.d_rate = 0
 
     # optim parameters
-    cf.l_rate = 1e-3
-    cf.q_l_rate = 1e-3
+    cf.l_rate = 1e-4
+    cf.q_l_rate = 1e-4
     cf.optim = "ADAM"
     cf.eps = 1e-8
     cf.decay_r = 0.9

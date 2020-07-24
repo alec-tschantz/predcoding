@@ -22,3 +22,4 @@ Based on the `MATLAB` [implementation](https://github.com/djcrw/Supervised-Predi
 - Measure number of iterations
 - The initial space of mu needs to be sufficently large - ensembles of amortised weights or slow learning rate?
 - Test pure PC accuracy
+- Errors go down, but amortised asymptotes 

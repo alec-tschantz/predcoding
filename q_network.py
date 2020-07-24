@@ -87,10 +87,8 @@ class QCodingNetwork(object):
                 x[self.n_layers - 1] = x_batch
        
             init_err += self.get_errors(x, batch_size)
-
             x, errors, _ = self.infer(x, batch_size)
             self.update_params(x, q, errors, batch_size, x_batch, y_batch, epoch_num=epoch_num, n_batches=n_batches, curr_batch=batch_id)
-
             end_err += self.get_errors(x, batch_size)
 
         return end_err/batch_id, init_err/batch_id

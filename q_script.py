@@ -55,20 +55,25 @@ def main(cf):
             print(f"\nepoch {epoch}")
 
             img_batches, label_batches = mnist_utils.get_batches(img_train, label_train, cf.batch_size)
-            print(f"training on {len(img_batches)} batches of size {cf.batch_size}")
+            print(f"> training on {len(img_batches)} batches of size {cf.batch_size}")
             end_err, init_err = model.train_epoch(img_batches, label_batches, epoch_num=epoch)
             print("end_err {} / init_err {}".format(end_err, init_err))
 
             if epoch % cf.test_every == 0:
                 img_batches, label_batches = mnist_utils.get_batches(img_test, label_test, cf.batch_size)
-                print("generating images...")
+                print("> generating images...")
                 pred_imgs = model.generate_data(label_batches[0])
                 mnist_utils.plot_imgs(pred_imgs, cf.img_path.format(epoch))
 
                 if cf.amortised:
                     img_batches, label_batches = mnist_utils.get_batches(img_test, label_test, cf.batch_size)
-                    print(f"testing amortised on {len(img_batches)} batches of size {cf.batch_size}")
-                    accs = model.test_epoch(img_batches, label_batches)
+                    print(f"> testing amortised acc {len(img_batches)} batches of size {cf.batch_size}")
+                    accs = model.test_amortised_epoch(img_batches, label_batches)
+                    print(f"average accuracy {np.mean(np.array(accs))}")
+
+                    img_batches, label_batches = mnist_utils.get_batches(img_test, label_test, cf.batch_size)
+                    print(f"> testing hybrid acc on {len(img_batches)} batches of size {cf.batch_size}")
+                    accs = model.test_epoch(img_batches, label_batches, itr_max=cf.test_itr_max)
                     print(f"average accuracy {np.mean(np.array(accs))}")
 
             perm = np.random.permutation(img_train.shape[1])
@@ -99,7 +104,9 @@ if __name__ == "__main__":
     cf.var_out = 1
     cf.vars = torch.ones(cf.n_layers)
 
+    # TODO 
     cf.itr_max = 100
+    cf.test_itr_max = 100
     cf.beta = 0.1
     cf.div = 2
     cf.condition = 1e-6

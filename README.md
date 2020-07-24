@@ -23,3 +23,4 @@ Based on the `MATLAB` [implementation](https://github.com/djcrw/Supervised-Predi
 - The initial space of mu needs to be sufficently large - ensembles of amortised weights or slow learning rate?
 - Test pure PC accuracy
 - Errors go down, but amortised asymptotes 
+- Infinite iterations - amortised learning provides mechanism for setting number, remove free parameter (replaces with threshold)

@@ -61,7 +61,9 @@ class PredictiveCodingNetwork(object):
             x[self.n_layers - 1] = y_batch
 
             x, errors, _ = self.infer(x, batch_size)
-            self.update_params(x, errors, batch_size, epoch_num=epoch_num, n_batches=n_batches, curr_batch=batch_id)
+            self.update_params(
+                x, errors, batch_size, epoch_num=epoch_num, n_batches=n_batches, curr_batch=batch_id
+            )
 
     def test_epoch(self, x_batches, y_batches):
         accs = []
@@ -200,15 +202,19 @@ class PredictiveCodingNetwork(object):
         elif self.optim is "ADAM":
             for l in range(self.n_layers - 1):
                 grad_b[l] = grad_b[l].unsqueeze(dim=1)
-                self.c_b[l] = self.beta_1 * self.c_b[l] + (1 - self.beta_1) * grad_b[l] 
-                self.c_w[l] = self.beta_1 * self.c_w[l] + (1 - self.beta_1) * grad_w[l] 
+                self.c_b[l] = self.beta_1 * self.c_b[l] + (1 - self.beta_1) * grad_b[l]
+                self.c_w[l] = self.beta_1 * self.c_w[l] + (1 - self.beta_1) * grad_w[l]
 
                 self.v_b[l] = self.beta_2 * self.v_b[l] + (1 - self.beta_2) * grad_b[l] ** 2
                 self.v_w[l] = self.beta_2 * self.v_w[l] + (1 - self.beta_2) * grad_w[l] ** 2
 
                 t = (epoch_num) * n_batches + curr_batch
-                self.W[l] = self.W[l] + self.l_rate * np.sqrt(1 - self.beta_2**t) * self.c_w[l] / (torch.sqrt(self.v_w[l]) + self.eps)
-                self.b[l] = self.b[l] + self.l_rate * np.sqrt(1 - self.beta_2**t) * self.c_b[l] / (torch.sqrt(self.v_b[l]) + self.eps)
+                self.W[l] = self.W[l] + self.l_rate * np.sqrt(1 - self.beta_2 ** t) * self.c_w[l] / (
+                    torch.sqrt(self.v_w[l]) + self.eps
+                )
+                self.b[l] = self.b[l] + self.l_rate * np.sqrt(1 - self.beta_2 ** t) * self.c_b[l] / (
+                    torch.sqrt(self.v_b[l]) + self.eps
+                )
 
         elif self.optim is "SGD" or self.optim is None:
             for l in range(self.n_layers - 1):

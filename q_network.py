@@ -74,7 +74,7 @@ class QCodingNetwork(object):
                 for l in range(1, self.n_layers):
                     b_q = self.b_q[l - 1].repeat(1, batch_size)
                     q[l] = self.W_q[l - 1] @ F.f(q[l - 1], self.act_fn) + b_q
-                
+
                 x = q[::-1]
                 x[0] = y_batch
                 x[self.n_layers - 1] = x_batch
@@ -85,17 +85,27 @@ class QCodingNetwork(object):
                     b = self.b[l - 1].repeat(1, batch_size)
                     x[l] = self.W[l - 1] @ F.f(x[l - 1], self.act_fn) + b
                 x[self.n_layers - 1] = x_batch
-       
+
             init_err += self.get_errors(x, batch_size)
             x, errors, _ = self.infer(x, batch_size)
-            self.update_params(x, q, errors, batch_size, x_batch, y_batch, epoch_num=epoch_num, n_batches=n_batches, curr_batch=batch_id)
+            self.update_params(
+                x,
+                q,
+                errors,
+                batch_size,
+                x_batch,
+                y_batch,
+                epoch_num=epoch_num,
+                n_batches=n_batches,
+                curr_batch=batch_id,
+            )
             end_err += self.get_errors(x, batch_size)
 
-        return end_err/batch_id, init_err/batch_id
-    
+        return end_err / batch_id, init_err / batch_id
+
     def get_errors(self, x, batch_size):
         total_err = 0
-        for l in range(1, self.n_layers-1):
+        for l in range(1, self.n_layers - 1):
             b = self.b[l - 1].repeat(1, batch_size)
             err = (x[l] - self.W[l - 1] @ F.f(x[l - 1], self.act_fn) - b) / self.vars[l]
             total_err += torch.sum(torch.mul(err, err), dim=0)
@@ -178,10 +188,12 @@ class QCodingNetwork(object):
 
             f_0 = f
             its = itr
-        
+
         return x, errors, its
 
-    def update_params(self, x, q, errors, batch_size, x_batch, y_batch, epoch_num=None, n_batches=None, curr_batch=None):
+    def update_params(
+        self, x, q, errors, batch_size, x_batch, y_batch, epoch_num=None, n_batches=None, curr_batch=None
+    ):
 
         grad_w = [[] for _ in range(self.n_layers - 1)]
         grad_b = [[] for _ in range(self.n_layers - 1)]
@@ -216,7 +228,15 @@ class QCodingNetwork(object):
             grad_w_q[2] = torch.matmul(x[1], q_errs[2].T * fn_deriv)
             grad_b_q[2] = self.vars[-1] * (1 / batch_size) * torch.sum(q_errs[2], axis=1)
 
-        self._apply_gradients(grad_w, grad_b, grad_w_q, grad_b_q, epoch_num=epoch_num, n_batches=n_batches, curr_batch=curr_batch)
+        self._apply_gradients(
+            grad_w,
+            grad_b,
+            grad_w_q,
+            grad_b_q,
+            epoch_num=epoch_num,
+            n_batches=n_batches,
+            curr_batch=curr_batch,
+        )
 
     def _init_params(self):
         weights = [[] for _ in range(self.n_layers - 1)]
@@ -246,7 +266,6 @@ class QCodingNetwork(object):
             self.c_w[l] = torch.zeros_like(self.W[l])
             self.v_b[l] = torch.zeros_like(self.b[l])
             self.v_w[l] = torch.zeros_like(self.W[l])
-
 
         if self.amortised:
             q_weights = [[] for _ in range(self.n_layers - 1)]
@@ -278,9 +297,9 @@ class QCodingNetwork(object):
                 self.v_b_q[l] = torch.zeros_like(self.b_q[l])
                 self.v_w_q[l] = torch.zeros_like(self.W_q[l])
 
-
-
-    def _apply_gradients(self, grad_w, grad_b, grad_w_q, grad_b_q, epoch_num=None, n_batches=None, curr_batch=None):
+    def _apply_gradients(
+        self, grad_w, grad_b, grad_w_q, grad_b_q, epoch_num=None, n_batches=None, curr_batch=None
+    ):
 
         if self.optim is "RMSPROP":
             for l in range(self.n_layers - 1):
@@ -297,36 +316,46 @@ class QCodingNetwork(object):
                     self.c_w_q[l] = self.decay_r * self.c_w_q[l] + (1 - self.decay_r) * grad_w_q[l].T ** 2
                     self.c_b_q[l] = self.decay_r * self.c_b_q[l] + (1 - self.decay_r) * grad_b_q[l] ** 2
 
-                    self.W_q[l] = self.W_q[l] + self.q_l_rate * (grad_w_q[l].T / (torch.sqrt(self.c_w_q[l]) + self.eps))
-                    self.b_q[l] = self.b_q[l] + self.q_l_rate * (grad_b_q[l] / (torch.sqrt(self.c_b_q[l]) + self.eps))
+                    self.W_q[l] = self.W_q[l] + self.q_l_rate * (
+                        grad_w_q[l].T / (torch.sqrt(self.c_w_q[l]) + self.eps)
+                    )
+                    self.b_q[l] = self.b_q[l] + self.q_l_rate * (
+                        grad_b_q[l] / (torch.sqrt(self.c_b_q[l]) + self.eps)
+                    )
 
         elif self.optim is "ADAM":
             for l in range(self.n_layers - 1):
                 grad_b[l] = grad_b[l].unsqueeze(dim=1)
-                self.c_b[l] = self.beta_1 * self.c_b[l] + (1 - self.beta_1) * grad_b[l] 
-                self.c_w[l] = self.beta_1 * self.c_w[l] + (1 - self.beta_1) * grad_w[l] 
+                self.c_b[l] = self.beta_1 * self.c_b[l] + (1 - self.beta_1) * grad_b[l]
+                self.c_w[l] = self.beta_1 * self.c_w[l] + (1 - self.beta_1) * grad_w[l]
 
                 self.v_b[l] = self.beta_2 * self.v_b[l] + (1 - self.beta_2) * grad_b[l] ** 2
                 self.v_w[l] = self.beta_2 * self.v_w[l] + (1 - self.beta_2) * grad_w[l] ** 2
 
                 t = (epoch_num) * n_batches + curr_batch
-                self.W[l] = self.W[l] + self.l_rate * np.sqrt(1 - self.beta_2**t) * self.c_w[l] / (torch.sqrt(self.v_w[l]) + self.eps)
-                self.b[l] = self.b[l] + self.l_rate * np.sqrt(1 - self.beta_2**t) * self.c_b[l] / (torch.sqrt(self.v_b[l]) + self.eps)
+                self.W[l] = self.W[l] + self.l_rate * np.sqrt(1 - self.beta_2 ** t) * self.c_w[l] / (
+                    torch.sqrt(self.v_w[l]) + self.eps
+                )
+                self.b[l] = self.b[l] + self.l_rate * np.sqrt(1 - self.beta_2 ** t) * self.c_b[l] / (
+                    torch.sqrt(self.v_b[l]) + self.eps
+                )
 
                 if self.amortised:
                     grad_b_q[l] = grad_b_q[l].unsqueeze(dim=1)
-                 
+
                     self.c_b_q[l] = self.beta_1 * self.c_b_q[l] + (1 - self.beta_1) * grad_b_q[l]
                     self.c_w_q[l] = self.beta_1 * self.c_w_q[l] + (1 - self.beta_1) * grad_w_q[l].T
 
                     self.v_b_q[l] = self.beta_2 * self.v_b_q[l] + (1 - self.beta_2) * grad_b_q[l] ** 2
-                    self.v_w_q[l] = self.beta_2 * self.v_w_q[l] + (1 - self.beta_2) * grad_w_q[l].T  ** 2
+                    self.v_w_q[l] = self.beta_2 * self.v_w_q[l] + (1 - self.beta_2) * grad_w_q[l].T ** 2
 
                     t = (epoch_num) * n_batches + curr_batch
-                    self.W_q[l] = self.W_q[l] + self.q_l_rate * np.sqrt(1 - self.beta_2**t) * self.c_w_q[l] / (torch.sqrt(self.v_w_q[l]) + self.eps)
-                    self.b_q[l] = self.b_q[l] + self.q_l_rate * np.sqrt(1 - self.beta_2**t) * self.c_b_q[l] / (torch.sqrt(self.v_b_q[l]) + self.eps)
-
-
+                    self.W_q[l] = self.W_q[l] + self.q_l_rate * np.sqrt(1 - self.beta_2 ** t) * self.c_w_q[
+                        l
+                    ] / (torch.sqrt(self.v_w_q[l]) + self.eps)
+                    self.b_q[l] = self.b_q[l] + self.q_l_rate * np.sqrt(1 - self.beta_2 ** t) * self.c_b_q[
+                        l
+                    ] / (torch.sqrt(self.v_b_q[l]) + self.eps)
 
         elif self.optim is "SGD" or self.optim is None:
             for l in range(self.n_layers - 1):

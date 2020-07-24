@@ -85,6 +85,7 @@ def plot_imgs(img_batch, save_path):
         axes[i].imshow(img)
         axes[i].set_axis_off()
     plt.savefig(save_path)
+    plt.clf()
 
 
 def nearest_square(limit):

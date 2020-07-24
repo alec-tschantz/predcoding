@@ -22,6 +22,8 @@ class PredictiveCodingNetwork(object):
         self.itr_max = cf.itr_max
         self.batch_size = cf.batch_size
 
+        self.beta_1 = cf.beta_1
+        self.beta_2 = cf.beta_2
         self.beta = cf.beta
         self.div = cf.div
         self.d_rate = cf.d_rate
@@ -33,12 +35,15 @@ class PredictiveCodingNetwork(object):
         self.decay_r = cf.decay_r
         self.c_b = [[] for _ in range(self.n_layers)]
         self.c_w = [[] for _ in range(self.n_layers)]
+        self.v_b = [[] for _ in range(self.n_layers)]
+        self.v_w = [[] for _ in range(self.n_layers)]
 
         self.W = None
         self.b = None
         self._init_params()
 
-    def train_epoch(self, x_batches, y_batches):
+    def train_epoch(self, x_batches, y_batches, epoch_num=None):
+        n_batches = len(x_batches)
         for batch_id, (x_batch, y_batch) in enumerate(zip(x_batches, y_batches)):
 
             if batch_id % 500 == 0 and batch_id > 0:
@@ -56,7 +61,7 @@ class PredictiveCodingNetwork(object):
             x[self.n_layers - 1] = y_batch
 
             x, errors, _ = self.infer(x, batch_size)
-            self.update_params(x, errors, batch_size)
+            self.update_params(x, errors, batch_size, epoch_num=epoch_num, n_batches=n_batches, curr_batch=batch_id)
 
     def test_epoch(self, x_batches, y_batches):
         accs = []
@@ -135,9 +140,10 @@ class PredictiveCodingNetwork(object):
 
             f_0 = f
             its = itr
+
         return x, errors, its
 
-    def update_params(self, x, errors, batch_size):
+    def update_params(self, x, errors, batch_size, epoch_num=None, n_batches=None, curr_batch=None):
         grad_w = [[] for _ in range(self.n_layers - 1)]
         grad_b = [[] for _ in range(self.n_layers - 1)]
 
@@ -149,7 +155,7 @@ class PredictiveCodingNetwork(object):
             )
             grad_b[l] = self.vars[-1] * (1 / batch_size) * torch.sum(errors[l + 1], axis=1)
 
-        self._apply_gradients(grad_w, grad_b)
+        self._apply_gradients(grad_w, grad_b, epoch_num=epoch_num, n_batches=n_batches, curr_batch=curr_batch)
 
     def _init_params(self):
         weights = [[] for _ in range(self.n_layers)]
@@ -177,8 +183,10 @@ class PredictiveCodingNetwork(object):
         for l in range(self.n_layers - 1):
             self.c_b[l] = torch.zeros_like(self.b[l])
             self.c_w[l] = torch.zeros_like(self.W[l])
+            self.v_b[l] = torch.zeros_like(self.b[l])
+            self.v_w[l] = torch.zeros_like(self.W[l])
 
-    def _apply_gradients(self, grad_w, grad_b):
+    def _apply_gradients(self, grad_w, grad_b, epoch_num=None, n_batches=None, curr_batch=None):
 
         if self.optim is "RMSPROP":
             for l in range(self.n_layers - 1):
@@ -188,6 +196,19 @@ class PredictiveCodingNetwork(object):
 
                 self.W[l] = self.W[l] + self.l_rate * (grad_w[l] / (torch.sqrt(self.c_w[l]) + self.eps))
                 self.b[l] = self.b[l] + self.l_rate * (grad_b[l] / (torch.sqrt(self.c_b[l]) + self.eps))
+
+        elif self.optim is "ADAM":
+            for l in range(self.n_layers - 1):
+                grad_b[l] = grad_b[l].unsqueeze(dim=1)
+                self.c_b[l] = self.beta_1 * self.c_b[l] + (1 - self.beta_1) * grad_b[l] 
+                self.c_w[l] = self.beta_1 * self.c_w[l] + (1 - self.beta_1) * grad_w[l] 
+
+                self.v_b[l] = self.beta_2 * self.v_b[l] + (1 - self.beta_2) * grad_b[l] ** 2
+                self.v_w[l] = self.beta_2 * self.v_w[l] + (1 - self.beta_2) * grad_w[l] ** 2
+
+                t = (epoch_num) * n_batches + curr_batch
+                self.W[l] = self.W[l] + self.l_rate * np.sqrt(1 - self.beta_2**t) * self.c_w[l] / (torch.sqrt(self.v_w[l]) + self.eps)
+                self.b[l] = self.b[l] + self.l_rate * np.sqrt(1 - self.beta_2**t) * self.c_b[l] / (torch.sqrt(self.v_b[l]) + self.eps)
 
         elif self.optim is "SGD" or self.optim is None:
             for l in range(self.n_layers - 1):

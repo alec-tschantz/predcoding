@@ -54,7 +54,7 @@ def main(cf):
 
             img_batches, label_batches = mnist_utils.get_batches(img_train, label_train, cf.batch_size)
             print(f"training on {len(img_batches)} batches of size {cf.batch_size}")
-            model.train_epoch(img_batches, label_batches)
+            model.train_epoch(img_batches, label_batches, epoch_num=epoch)
 
             img_batches, label_batches = mnist_utils.get_batches(img_test, label_test, cf.batch_size)
             print(f"testing on {len(img_batches)} batches of size {cf.batch_size}")
@@ -70,7 +70,7 @@ if __name__ == "__main__":
     cf = AttrDict()
 
     cf.n_epochs = 100
-    cf.data_size = 1000
+    cf.data_size = None
     cf.batch_size = 128
 
     cf.apply_inv = True
@@ -91,10 +91,12 @@ if __name__ == "__main__":
     cf.d_rate = 0
 
     # optim parameters
-    cf.l_rate = 1e-4
-    cf.optim = "RMSPROP"
+    cf.l_rate = 1e-3
+    cf.optim = "ADAM"
     cf.eps = 1e-8
     cf.decay_r = 0.9
+    cf.beta_1 = 0.9
+    cf.beta_2 = 0.999
 
     cf.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     main(cf)

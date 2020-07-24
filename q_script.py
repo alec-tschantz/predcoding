@@ -8,6 +8,8 @@ import mnist_utils
 import functions as F
 from q_network import QCodingNetwork
 
+""" Update amortised in iterations? """
+
 
 class AttrDict(dict):
     __setattr__ = dict.__setitem__
@@ -54,13 +56,20 @@ def main(cf):
 
             img_batches, label_batches = mnist_utils.get_batches(img_train, label_train, cf.batch_size)
             print(f"training on {len(img_batches)} batches of size {cf.batch_size}")
-            model.train_epoch(img_batches, label_batches)
+            end_err, init_err = model.train_epoch(img_batches, label_batches, epoch_num=epoch)
+            print("end_err {} / init_err {}".format(end_err, init_err))
 
+            if epoch % cf.test_every == 0:
+                img_batches, label_batches = mnist_utils.get_batches(img_test, label_test, cf.batch_size)
+                print("generating images...")
+                pred_imgs = model.generate_data(label_batches[0])
+                mnist_utils.plot_imgs(pred_imgs, cf.img_path.format(epoch))
 
-            img_batches, label_batches = mnist_utils.get_batches(img_test, label_test, cf.batch_size)
-            print(f"testing on {len(img_batches)} batches of size {cf.batch_size}")
-            accs = model.test_amortised(img_batches, label_batches)
-            print(f"average accuracy {np.mean(np.array(accs))}")
+                if cf.amortised:
+                    img_batches, label_batches = mnist_utils.get_batches(img_test, label_test, cf.batch_size)
+                    print(f"testing amortised on {len(img_batches)} batches of size {cf.batch_size}")
+                    accs = model.test_epoch(img_batches, label_batches)
+                    print(f"average accuracy {np.mean(np.array(accs))}")
 
             perm = np.random.permutation(img_train.shape[1])
             img_train = img_train[:, perm]
@@ -68,18 +77,23 @@ def main(cf):
 
 
 if __name__ == "__main__":
-    cf = AttrDict()
+    cf = AttrDict() 
+
+    cf.amortised = True
+
+    cf.img_path = "imgs/{}.png"
+    cf.test_every = 5
 
     cf.n_epochs = 100
-    cf.data_size = 1000
-    cf.batch_size = 20
+    cf.data_size = None
+    cf.batch_size = 128
 
     cf.apply_inv = True
     cf.apply_scaling = True
     cf.label_scale = 0.94
     cf.img_scale = 1.0
 
-    cf.neurons = [10, 256, 500, 784]
+    cf.neurons = [10, 500, 500, 784]
     cf.n_layers = len(cf.neurons)
     cf.act_fn = F.TANH
     cf.var_out = 1
@@ -89,13 +103,16 @@ if __name__ == "__main__":
     cf.beta = 0.1
     cf.div = 2
     cf.condition = 1e-6
-    cf.d_rate = 0
+    cf.d_rate = 9
 
     # optim parameters
-    cf.l_rate = 1e-4
-    cf.optim = "SGD"
+    cf.l_rate = 1e-3
+    cf.q_l_rate = 1e-3
+    cf.optim = "ADAM"
     cf.eps = 1e-8
     cf.decay_r = 0.9
+    cf.beta_1 = 0.9
+    cf.beta_2 = 0.999
 
     cf.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     main(cf)

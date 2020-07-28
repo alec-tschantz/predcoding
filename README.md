@@ -24,3 +24,6 @@ Based on the `MATLAB` [implementation](https://github.com/djcrw/Supervised-Predi
 - Test pure PC accuracy
 - Errors go down, but amortised asymptotes 
 - Infinite iterations - amortised learning provides mechanism for setting number, remove free parameter (replaces with threshold)
+- Generative overtakes and this is inconsistent with discriminative - need some way to promote discrimination in network
+    - Both trying to predict each other? Generative predicting discrimantive? 
+- Add gradient clamping

@@ -6,7 +6,7 @@ import torch
 
 import mnist_utils
 import functions as F
-from q_network import QCodingNetwork
+from q_network_v2 import QCodingNetwork
 
 """ Update amortised in iterations? """
 
@@ -69,13 +69,12 @@ def main(cf):
                 pred_imgs = model.generate_data(label_batches[0])
                 mnist_utils.plot_imgs(pred_imgs, cf.img_path.format(epoch))
 
-                if cf.amortised:
-                    img_batches, label_batches = mnist_utils.get_batches(img_test, label_test, cf.batch_size)
-                    print(f"> testing amortised acc {len(img_batches)} batches of size {cf.batch_size}")
-                    accs = model.test_amortised_epoch(img_batches, label_batches)
-                    mean_q_acc = np.mean(np.array(accs))
-                    q_accs.append(mean_q_acc)
-                    print(f"average amortised accuracy {mean_q_acc}")
+                img_batches, label_batches = mnist_utils.get_batches(img_test, label_test, cf.batch_size)
+                print(f"> testing amortised acc {len(img_batches)} batches of size {cf.batch_size}")
+                accs = model.test_amortised_epoch(img_batches, label_batches)
+                mean_q_acc = np.mean(np.array(accs))
+                q_accs.append(mean_q_acc)
+                print(f"average amortised accuracy {mean_q_acc}")
 
                 img_batches, label_batches = mnist_utils.get_batches(img_test, label_test, cf.batch_size)
                 print(f"> testing hybrid acc on {len(img_batches)} batches of size {cf.batch_size}")
@@ -106,8 +105,6 @@ def main(cf):
 if __name__ == "__main__":
     cf = AttrDict() 
 
-    cf.amortised = True
-
     cf.img_path = "imgs/epoch_{}.png"
     cf.hybird_path = "data/h_accs_3"
     cf.amortised_path = "data/q_accs_3"
@@ -123,8 +120,9 @@ if __name__ == "__main__":
     cf.label_scale = 0.94
     cf.img_scale = 1.0
 
-    cf.neurons = [10, 500, 500, 784]
-    cf.n_layers = len(cf.neurons)
+    cf.td_neurons = [10, 500, 500, 784]
+    cf.bu_neurons = [784, 500, 500, 10]
+    cf.n_layers = len(cf.td_neurons)
     cf.act_fn = F.TANH
     cf.var_out = 1
     cf.vars = torch.ones(cf.n_layers)
@@ -139,8 +137,8 @@ if __name__ == "__main__":
     cf.d_rate = 0
 
     # optim parameters
-    cf.l_rate = 1e-5
-    cf.q_l_rate = 1e-5
+    cf.l_rate = 1e-4
+    cf.q_l_rate = 1e-4
     # TODO
     cf.optim = "ADAM"
     cf.eps = 1e-8

@@ -112,11 +112,11 @@ if __name__ == "__main__":
     cf = AttrDict() 
 
     cf.img_path = "imgs/epoch_{}.png"
-    cf.hybird_path = "data/h_accs_5"
-    cf.amortised_path = "data/q_accs_5"
-    cf.pc_path = "data/pc_accs_5"
-    cf.init_errs_path = "data/init_errs_5"
-    cf.end_errs_path = "data/end_errs_5"
+    cf.hybird_path = "data/h_accs_6"
+    cf.amortised_path = "data/q_accs_6"
+    cf.pc_path = "data/pc_accs_6"
+    cf.init_errs_path = "data/init_errs_6"
+    cf.end_errs_path = "data/end_errs_6"
     cf.test_every = 1
 
     cf.n_epochs = 100
@@ -136,8 +136,8 @@ if __name__ == "__main__":
     cf.vars = torch.ones(cf.n_layers)
 
     # TODO 
-    cf.itr_max = 50
-    cf.test_itr_max = 50
+    cf.itr_max = 1000
+    cf.test_itr_max = 1000
     # TODO change stuff here
     cf.amortised_prec = 0.1
     cf.generative_prec = 0.1

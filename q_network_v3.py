@@ -23,6 +23,9 @@ class QCodingNetwork(object):
         self.itr_max = cf.itr_max
         self.batch_size = cf.batch_size
 
+        self.amortised_prec = cf.amortised_prec
+        self.generative_prec = cf.generative_prec
+
         self.beta_1 = cf.beta_1
         self.beta_2 = cf.beta_2
         self.beta = cf.beta
@@ -61,23 +64,27 @@ class QCodingNetwork(object):
             label_batch = set_tensor(label_batch, self.device)
             batch_size = img_batch.size(1)
 
+            # activations / mu
             x = [[] for _ in range(self.n_layers)]
 
+            # amortised forward
             x[0] = img_batch
             for l in range(1, self.n_layers):
                 b_q = self.b_q[l - 1].repeat(1, batch_size)
                 x[l] = self.W_q[l - 1] @ F.f(x[l - 1], self.act_fn) + b_q
 
+            # reverse order
             x = x[::-1]
             x[0] = label_batch
             x[self.n_layers - 1] = img_batch
             init_err += self.get_errors(x, batch_size)
 
+            # inference
             x, errors, q_errors, its = self.hybrid_infer(x, batch_size)
+            
             end_err += self.get_errors(x, batch_size)
             avg_itr += its
 
-            # update top-down parameters
             self.update_params(
                 x,
                 errors,
@@ -106,10 +113,11 @@ class QCodingNetwork(object):
             for l in range(1, self.n_layers):
                 b_q = self.b_q[l - 1].repeat(1, batch_size)
                 x[l] = self.W_q[l - 1] @ F.f(x[l - 1], self.act_fn) + b_q
+            
             x = x[::-1]
             x[self.n_layers - 1] = img_batch
 
-            x, errors, q_errors, its = self.hybrid_infer(x, batch_size, itr_max=itr_max, classify=True)
+            x, errors, q_errors, its = self.hybrid_infer(x, batch_size, itr_max=itr_max, test=True)
             pred_labels = x[0]
             acc = mnist_utils.mnist_accuracy(pred_labels, label_batch)
             accs.append(acc)
@@ -126,7 +134,6 @@ class QCodingNetwork(object):
             batch_size = x_batch.size(1)
 
             x = [[] for _ in range(self.n_layers)]
-            q = [[] for _ in range(self.n_layers)]
 
             x[0] = torch.empty_like(y_batch).normal_(mean=0.0, std=0.1)
             for l in range(1, self.n_layers):
@@ -134,7 +141,7 @@ class QCodingNetwork(object):
                 x[l] = self.W[l - 1] @ F.f(x[l - 1], self.act_fn) + b
             x[self.n_layers - 1] = x_batch
 
-            x, errors, its = self.infer_and_classify(x, batch_size, x_batch, itr_max=itr_max)
+            x, errors, its = self.infer(x, batch_size, itr_max=itr_max, test=True)
             pred_y = x[0]
             acc = mnist_utils.mnist_accuracy(pred_y, y_batch)
             accs.append(acc)
@@ -170,7 +177,7 @@ class QCodingNetwork(object):
         pred_y = x[-1]
         return pred_y
 
-    def hybrid_infer(self, x, batch_size, itr_max=None, classify=False):
+    def hybrid_infer(self, x, batch_size, itr_max=None, test=False):
         itr_max = self.itr_max if itr_max is None else itr_max
         
         errors = [[] for _ in range(self.n_layers)]
@@ -205,7 +212,6 @@ class QCodingNetwork(object):
             f_x_arr[l - 1] = f_x
             f_x_deriv_arr[l - 1] = f_x_deriv
 
-            # eq. 2.17
             b = self.b[l - 1].repeat(1, batch_size)
             errors[l] = (x[l] - self.W[l - 1] @ f_x - b) / self.vars[l]
             f_0 = f_0 - self.vars[l] * torch.sum(torch.mul(errors[l], errors[l]), dim=0)
@@ -213,27 +219,26 @@ class QCodingNetwork(object):
         for itr in range(itr_max):
             # bottom up
             x = x[::-1]
-            if classify:
+            if test:
                 g = torch.mul(self.W_q[0].T @ q_errors[1], q_f_x_deriv_arr[0])
-                x[0] = x[0] + beta * g 
+                x[0] = x[0] + self.amortised_prec * g 
+            
             for l in range(1, self.n_layers - 1):
                 g = torch.mul(self.W_q[l].T @ q_errors[l + 1], q_f_x_deriv_arr[l])
-                x[l] = x[l] + beta * (-q_errors[l] + g)
+                x[l] = x[l] + self.amortised_prec * (-q_errors[l] + g)
 
             # top down
             x = x[::-1]
-            if classify:
+            if test:
                 g = torch.mul(self.W[0].T @ errors[1], f_x_deriv_arr[0])
-                x[0] = x[0] + beta * g 
+                x[0] = x[0] + self.generative_prec * g 
             for l in range(1, self.n_layers - 1):
-                # eq. 2.18
                 g = torch.mul(self.W[l].T @ errors[l + 1], f_x_deriv_arr[l])
                 x[l] = x[l] + beta * (-errors[l] + g)
 
             # update errors
             f = 0
             q_f = 0
-            # TODO threshold on both errors
             for l in range(1, self.n_layers):
                 # bottom up
                 x = x[::-1]
@@ -255,11 +260,14 @@ class QCodingNetwork(object):
                 errors[l] = (x[l] - self.W[l - 1] @ f_x - self.b[l - 1]) / self.vars[l]
                 f = f - self.vars[l] * torch.sum(torch.mul(errors[l], errors[l]), dim=0)
 
+            # TODO
             diff = f - f_0
+            q_diff = q_f - q_f_0
             threshold = self.condition * self.beta / self.vars[self.n_layers - 1]
-            if torch.any(diff < 0):
+            if torch.any(diff < 0) or torch.any(q_diff < 0):
                 beta = beta / self.div
-            elif torch.mean(diff) < threshold:
+                # TODO update relative betas
+            elif torch.mean(diff) < threshold or torch.mean(q_diff) < threshold:
                 # print(f"broke @ {its} its")
                 break
 
@@ -269,7 +277,7 @@ class QCodingNetwork(object):
 
         return x, errors, q_errors, its
 
-    def amortised_infer(self, x, batch_size, itr_max=None):
+    def infer(self, x, batch_size, itr_max=None, test=False):
         itr_max = self.itr_max if itr_max is None else itr_max
         errors = [[] for _ in range(self.n_layers)]
         f_x_arr = [[] for _ in range(self.n_layers)]
@@ -278,57 +286,6 @@ class QCodingNetwork(object):
         its = 0
         beta = self.beta
 
-        for l in range(1, self.n_layers):
-            f_x = F.f(x[l - 1], self.act_fn)
-            f_x_deriv = F.f_deriv(x[l - 1], self.act_fn)
-            f_x_arr[l - 1] = f_x
-            f_x_deriv_arr[l - 1] = f_x_deriv
-
-            # eq. 2.17
-            b = self.b_q[l - 1].repeat(1, batch_size)
-            errors[l] = (x[l] - self.W_q[l - 1] @ f_x - b) / self.vars[l]
-            f_0 = f_0 - self.vars[l] * torch.sum(torch.mul(errors[l], errors[l]), dim=0)
-
-        for itr in range(itr_max):
-            # update node activity
-            for l in range(1, self.n_layers - 1):
-                # eq. 2.18
-                g = torch.mul(self.W_q[l].T @ errors[l + 1], f_x_deriv_arr[l])
-                x[l] = x[l] + beta * (-errors[l] + g)
-
-            # update errors
-            f = 0
-            for l in range(1, self.n_layers):
-                f_x = F.f(x[l - 1], self.act_fn)
-                f_x_deriv = F.f_deriv(x[l - 1], self.act_fn)
-                f_x_arr[l - 1] = f_x
-                f_x_deriv_arr[l - 1] = f_x_deriv
-
-                # eq. 2.17
-                errors[l] = (x[l] - self.W_q[l - 1] @ f_x - self.b_q[l - 1]) / self.vars[l]
-                f = f - self.vars[l] * torch.sum(torch.mul(errors[l], errors[l]), dim=0)
-
-            diff = f - f_0
-            threshold = self.condition * self.beta / self.vars[self.n_layers - 1]
-            if torch.any(diff < 0):
-                beta = beta / self.div
-            elif torch.mean(diff) < threshold:
-                # print(f"broke @ {its} its")
-                break
-
-            f_0 = f
-            its = itr
-
-        return x, errors, its
-
-    def infer(self, x, batch_size, itr_max=None):
-        itr_max = self.itr_max if itr_max is None else itr_max
-        errors = [[] for _ in range(self.n_layers)]
-        f_x_arr = [[] for _ in range(self.n_layers)]
-        f_x_deriv_arr = [[] for _ in range(self.n_layers)]
-        f_0 = 0
-        its = 0
-        beta = self.beta
 
         for l in range(1, self.n_layers):
             f_x = F.f(x[l - 1], self.act_fn)
@@ -342,64 +299,10 @@ class QCodingNetwork(object):
             f_0 = f_0 - self.vars[l] * torch.sum(torch.mul(errors[l], errors[l]), dim=0)
 
         for itr in range(itr_max):
-            # update node activity
-            for l in range(1, self.n_layers - 1):
-                # eq. 2.18
-                g = torch.mul(self.W[l].T @ errors[l + 1], f_x_deriv_arr[l])
-                x[l] = x[l] + beta * (-errors[l] + g)
-
-            # update errors
-            f = 0
-            for l in range(1, self.n_layers):
-                f_x = F.f(x[l - 1], self.act_fn)
-                f_x_deriv = F.f_deriv(x[l - 1], self.act_fn)
-                f_x_arr[l - 1] = f_x
-                f_x_deriv_arr[l - 1] = f_x_deriv
-
-                # eq. 2.17
-                errors[l] = (x[l] - self.W[l - 1] @ f_x - self.b[l - 1]) / self.vars[l]
-                f = f - self.vars[l] * torch.sum(torch.mul(errors[l], errors[l]), dim=0)
-
-            diff = f - f_0
-            threshold = self.condition * self.beta / self.vars[self.n_layers - 1]
-            if torch.any(diff < 0):
-                beta = beta / self.div
-            elif torch.mean(diff) < threshold:
-                # print(f"broke @ {its} its")
-                break
-
-            f_0 = f
-            its = itr
-
-        return x, errors, its
-
-    def infer_and_classify(self, x, batch_size, x_batch, itr_max=None):
-        """ this version infers top layer, rather than keeping it fixed """
-        itr_max = self.itr_max if itr_max is None else itr_max
-        errors = [[] for _ in range(self.n_layers)]
-        f_x_arr = [[] for _ in range(self.n_layers)]
-        f_x_deriv_arr = [[] for _ in range(self.n_layers)]
-        f_0 = 0
-        its = 0
-        beta = self.beta
-
-        x[self.n_layers - 1] = x_batch
-
-        for l in range(1, self.n_layers):
-            f_x = F.f(x[l - 1], self.act_fn)
-            f_x_deriv = F.f_deriv(x[l - 1], self.act_fn)
-            f_x_arr[l - 1] = f_x
-            f_x_deriv_arr[l - 1] = f_x_deriv
-
-            # eq. 2.17
-            b = self.b[l - 1].repeat(1, batch_size)
-            errors[l] = (x[l] - self.W[l - 1] @ f_x - b) / self.vars[l]
-            f_0 = f_0 - self.vars[l] * torch.sum(torch.mul(errors[l], errors[l]), dim=0)
-
-        for itr in range(itr_max):
-            # TODO (updating top layer)
-            g = torch.mul(self.W[0].T @ errors[1], f_x_deriv_arr[0])
-            x[0] = x[0] + beta * g 
+            
+            if test:
+                g = torch.mul(self.W[0].T @ errors[1], f_x_deriv_arr[0])
+                x[0] = x[0] + beta * g 
 
             # update node activity
             for l in range(1, self.n_layers - 1):
@@ -424,6 +327,7 @@ class QCodingNetwork(object):
             if torch.any(diff < 0):
                 beta = beta / self.div
             elif torch.mean(diff) < threshold:
+                print(f"broke @ {its} its")
                 break
 
             f_0 = f
